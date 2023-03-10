@@ -1,2 +1,2 @@
-# Django-React-Todo
-A simple To-Do app. Backend is a REST API created with Django while the frontend is in React. 
+# ToDo-List-Backend
+Django backend for a ToDo List app. Backend will connect to RDS MySQL database.
