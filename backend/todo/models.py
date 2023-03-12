@@ -8,6 +8,9 @@ class User(models.Model):
     last_name = models.CharField(max_length=50)
     date_created = models.DateTimeField()
 
+    def __str__(self):
+        return self.username
+
 
 class Task(models.Model):
     user = models.ForeignKey(
@@ -19,6 +22,9 @@ class Task(models.Model):
     date_created = models.DateTimeField()
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
+
+    def __str__(self):
+        return self.task_name
 
 
 class Task_Share(models.Model):
@@ -33,3 +39,6 @@ class Task_Share(models.Model):
     )
     date_shared = models.DateTimeField()
     viewed = models.BooleanField()
+
+    def __str__(self):
+        return f"{self.sender_user} shared {self.task} with {self.recipient_user}"
