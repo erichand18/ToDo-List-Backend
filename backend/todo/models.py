@@ -15,6 +15,7 @@ class User(models.Model):
 class Task(models.Model):
     user = models.ForeignKey(
         User,
+        on_delete=models.CASCADE
     )
     task_name = models.CharField(max_length=255)
     task_description = models.CharField(max_length=4095)
@@ -30,12 +31,17 @@ class Task(models.Model):
 class Task_Share(models.Model):
     task = models.ForeignKey(
         Task,
+        on_delete=models.CASCADE
     )
     sender_user = models.ForeignKey(
         User,
+        on_delete=models.CASCADE,
+        related_name='sender_user',
     )
     recipient_user = models.ForeignKey(
         User,
+        on_delete=models.CASCADE,
+        related_name='recipient_user',
     )
     date_shared = models.DateTimeField()
     viewed = models.BooleanField()
