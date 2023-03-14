@@ -49,7 +49,7 @@ class UsernameAvailabilityView(ListView):
             }
             return JsonResponse(response_body, status=404)
 
-# TODO: Look into Django native user auth
+# Look into Django native user auth
 
 
 def user_login(request):
@@ -63,23 +63,28 @@ class TaskListView(ListView):
             try:
                 task_list = list(Task.objects.values())
 
-                response_body = {
-                    'message': 'Success',
-                    'tasks': task_list,
-                }
-
-                return JsonResponse(response_body, status=200)
+                return JsonResponse(
+                    {
+                        'message': 'Success',
+                        'tasks': task_list,
+                    },
+                    status=200,
+                )
             except Exception as error:
-                response_body = {
-                    'message': f'An error occurred retrieving tasks: {error}',
-                    'tasks': None
-                }
-                return JsonResponse(response_body, status=500)
+                return JsonResponse(
+                    {
+                        'message': f'An error occurred retrieving tasks: {error}',
+                        'tasks': None
+                    },
+                    status=500,
+                )
         else:
-            response_body = {
-                'message': 'Endpoint does not exists for this HTTP verb'
-            }
-            return JsonResponse(response_body, status=404)
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb'
+                },
+                status=404,
+            )
 
 
 class TaskCreateView(ListView):
@@ -90,28 +95,31 @@ class TaskCreateView(ListView):
             # Example: end_date > start_date, all data present, length limits on data fields
             task_data = dict(request.POST.items())
 
-            print(task_data)
-            new_task = Task(user_id=task_data['user_id'],
-                            task_name=task_data['name'],
-                            task_description=task_data['description'],
-                            color=task_data['color'],
-                            date_created=task_data['date_created'],
-                            start_date=task_data['start_date'],
-                            end_date=task_data['end_date']
-                            )
+            new_task = Task(
+                user_id=task_data['user_id'],
+                task_name=task_data['name'],
+                task_description=task_data['description'],
+                color=task_data['color'],
+                date_created=task_data['date_created'],
+                start_date=task_data['start_date'],
+                end_date=task_data['end_date'],
+            )
+
             new_task.save()
 
-            response_body = {
-                'message': 'Successfully created task'
-            }
-            return JsonResponse(response_body, status=201)
+            return JsonResponse(
+                {
+                    'message': 'Successfully created task'
+                },
+                status=201
+            )
         else:
-            response_body = {
-                'message': 'Endpoint does not exists for this HTTP verb'
-            }
-            return JsonResponse(response_body, status=404)
-
-# TODO: convert to class-based view
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb'
+                },
+                status=404
+            )
 
 
 class TaskDeleteView(ListView):
@@ -130,54 +138,103 @@ class TaskDeleteView(ListView):
 
             if task_count > 1:
                 # More than one task found for one pk. Throw an error and don't try to delete
-                response_body = {
-                    'message': 'Error! More than one task found while trying to delete a task'
-                }
-                return JsonResponse(response_body, status=500)
+                return JsonResponse(
+                    {
+                        'message': 'Error! More than one task found while trying to delete a task'
+                    },
+                    status=500
+                )
 
             elif task_count == 0:
                 # No records found, so nothing to delete
-                response_body = {
-                    'message': 'No task found!'
-                }
-                return JsonResponse(response_body, status=404)
+                return JsonResponse(
+                    {
+                        'message': 'No task found!'
+                    },
+                    status=404
+                )
 
             else:
                 # One record found as expected, so attempt to delete the resource
                 try:
                     task_to_delete.delete()
 
-                    response_body = {
-                        'message': 'Successfully deleted task'
-                    }
-
-                    return JsonResponse(response_body, status=200)
+                    return JsonResponse(
+                        {
+                            'message': 'Successfully deleted task'
+                        },
+                        status=200
+                    )
                 except Exception as error:
                     # failed to delete resource
                     return JsonResponse({'message': 'Error deleting task!'}, status=500)
-
         else:
-            response_body = {
-                'message': 'Endpoint does not exists for this HTTP verb'
-            }
-            return JsonResponse(response_body, status=404)
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb'
+                },
+                status=404
+            )
 
 
-def task_delete(request):
-    return HttpResponse('Deleted a task')
+class TaskEditView(ListView):
+    def edit(request, task_id):
+        if request.method == 'PUT':
+            # Find the record to update
+            try:
+                task_to_update = Task.objects.filter(pk=task_id)
+            except Exception as error:
+                return JsonResponse(
+                    {
+                        'message': 'Error finding task to update',
+                        'error': error
+                    },
+                    status=500,
+                )
 
-# TODO: convert to class-based view
+            # Make sure only one record was found
+            if len(list(task_to_update)) == 1:
+                updates = dict(request.PUT.items())
+
+                # TODO: validate updates
+
+                for key in updates:
+                    task_to_update[key] = updates[key]
+
+                try:
+                    task_to_update.save()
+                except Exception as error:
+                    return JsonResponse(
+                        {
+                            'message': 'Error updating task',
+                            'error': error
+                        },
+                        status=500,
+                    )
+            else:
+                return JsonResponse(
+                    {
+                        'message': 'error updating task'
+                    },
+                    status=500
+                )
+        else:
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb'
+                },
+                status=404
+            )
 
 
-def task_edit(request):
-    if request.method == 'PUT':
-        updates = dict(request.POST.items())
-
-        # TODO: validate updates
-        pass
-
-# TODO: convert to class-based view
-
-
-def share_task(request):
-    return HttpResponse('Shared the task list')
+class TaskShareView(ListView):
+    def share(request):
+        if request.method == 'POST':
+            return JsonResponse('Shared the task list')
+        else:
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb'
+                },
+                status=404
+            )

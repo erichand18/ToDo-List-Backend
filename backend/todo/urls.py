@@ -25,13 +25,19 @@ urlpatterns = [
     ),
     re_path(
         r'task/(?P<task_id>[0-9])/edit',
-        views.task_edit,
+        views.TaskEditView.edit,
         name='task-edit',
     ),
     re_path(
         r'task/(?P<task_id>[0-9])/delete',
         views.TaskDeleteView.delete,
-        name='task-delete'),
+        name='task-delete'
+    ),
+    re_path(
+        r'task/(?P<task_id>[0-9])/share',
+        views.TaskShareView.share,
+        name='task-share'
+    ),
 ]
 
 # Need to format this better. Want to add save-on-edit rule to put one function parameter per line when you append ',' to the last
