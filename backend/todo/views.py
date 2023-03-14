@@ -67,14 +67,29 @@ def user_login(request):
 class TaskListView(ListView):
     def get(request):
         if request.method == 'GET':
-            # Fetch tasks from the DB and except any errors
             try:
+                # Fetch tasks from the DB and except any errors
                 task_list = list(Task.objects.values())
+
+                # Get list of task_ids for tasks shared with the user
+                task_share_data = list(Task_Share.objects.filter(
+                    # The User's ID FIX THIS ############################################################
+                    recipient_user=1
+                ).filter(
+                    viewed=False
+                ))
+
+                shared_task_ids = [x['id'] for x in task_share_data]
+
+                shared_tasks = Task.objects.filter(
+                    pk__in=shared_task_ids
+                )
 
                 return JsonResponse(
                     {
                         'message': 'Success',
                         'tasks': task_list,
+                        'shared_tasks': shared_tasks,
                     },
                     status=200,
                 )
