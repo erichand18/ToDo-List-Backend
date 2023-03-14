@@ -33,8 +33,8 @@ urlpatterns = [
         views.TaskDeleteView.delete,
         name='task-delete'
     ),
-    re_path(
-        r'task/(?P<task_id>[0-9])/share',
+    path(
+        'task/share',
         views.TaskShareView.share,
         name='task-share'
     ),
