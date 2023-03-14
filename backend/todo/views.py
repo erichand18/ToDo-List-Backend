@@ -4,8 +4,7 @@ from django.views.generic import ListView
 from todo.models import Task, User, Task_Share
 from django.views.decorators.csrf import csrf_exempt
 import re
-import time
-import json
+from datetime import datetime
 
 
 class UsernameAvailabilityView(ListView):
@@ -16,10 +15,12 @@ class UsernameAvailabilityView(ListView):
 
             if not username_to_check:
                 # Bad request. No username came with the request. Send back a 422 with message
-                response_body = {
-                    'message': 'Error! No username submitted with request'
-                }
-                return JsonResponse(response_body, status=422)
+                return JsonResponse(
+                    {
+                        'message': 'Error! No username submitted with request',
+                    },
+                    status=422,
+                )
 
             # Check that the username is in an acceptable format
             name_format = re.compile(r'^[ A-Za-z0-9_@./#&+-]*$')
@@ -27,27 +28,34 @@ class UsernameAvailabilityView(ListView):
 
             if not acceptable_name_format:
                 # username is not an acceptable format, so return a 422 with message
-                response_body = {
-                    'message': 'The username is not in the valid format'
-                }
-                return JsonResponse(response_body, status=422)
+                return JsonResponse(
+                    {
+                        'message': 'The username is not in the valid format',
+                    },
+                    status=422,
+                )
             else:
                 # username is correct format, so check to see if the username is available
                 account_matching_username = User.objects.filter(
-                    username=username_to_check)
+                    username=username_to_check
+                )
 
                 username_is_available = len(account_matching_username) == 0
 
-                response_body = {
-                    'message': 'Successfully checked availability',
-                    'available': bool(username_is_available)
-                }
-                return JsonResponse(response_body, status=200)
+                return JsonResponse(
+                    {
+                        'message': 'Successfully checked availability',
+                        'available': bool(username_is_available),
+                    },
+                    status=200,
+                )
         else:
-            response_body = {
-                'message': 'Endpoint does not exists for this HTTP verb'
-            }
-            return JsonResponse(response_body, status=404)
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb',
+                },
+                status=404,
+            )
 
 # Look into Django native user auth
 
@@ -74,14 +82,14 @@ class TaskListView(ListView):
                 return JsonResponse(
                     {
                         'message': f'An error occurred retrieving tasks: {error}',
-                        'tasks': None
+                        'tasks': None,
                     },
                     status=500,
                 )
         else:
             return JsonResponse(
                 {
-                    'message': 'Endpoint does not exists for this HTTP verb'
+                    'message': 'Endpoint does not exists for this HTTP verb',
                 },
                 status=404,
             )
@@ -109,16 +117,16 @@ class TaskCreateView(ListView):
 
             return JsonResponse(
                 {
-                    'message': 'Successfully created task'
+                    'message': 'Successfully created task',
                 },
-                status=201
+                status=201,
             )
         else:
             return JsonResponse(
                 {
-                    'message': 'Endpoint does not exists for this HTTP verb'
+                    'message': 'Endpoint does not exists for this HTTP verb',
                 },
-                status=404
+                status=404,
             )
 
 
@@ -131,7 +139,12 @@ class TaskDeleteView(ListView):
                 task_to_delete = Task.objects.filter(id=task_id)
             except Exception as Error:
                 # Failed to query for resource
-                return JsonResponse({'message': 'Error deleting task!'}, status=500)
+                return JsonResponse(
+                    {
+                        'message': 'Error deleting task!',
+                    },
+                    status=500,
+                )
 
             # Check to make sure only one task was found
             task_count = len(list(task_to_delete))
@@ -140,18 +153,18 @@ class TaskDeleteView(ListView):
                 # More than one task found for one pk. Throw an error and don't try to delete
                 return JsonResponse(
                     {
-                        'message': 'Error! More than one task found while trying to delete a task'
+                        'message': 'Error! More than one task found while trying to delete a task',
                     },
-                    status=500
+                    status=500,
                 )
 
             elif task_count == 0:
                 # No records found, so nothing to delete
                 return JsonResponse(
                     {
-                        'message': 'No task found!'
+                        'message': 'No task found!',
                     },
-                    status=404
+                    status=404,
                 )
 
             else:
@@ -161,19 +174,24 @@ class TaskDeleteView(ListView):
 
                     return JsonResponse(
                         {
-                            'message': 'Successfully deleted task'
+                            'message': 'Successfully deleted task',
                         },
-                        status=200
+                        status=200,
                     )
                 except Exception as error:
                     # failed to delete resource
-                    return JsonResponse({'message': 'Error deleting task!'}, status=500)
+                    return JsonResponse(
+                        {
+                            'message': 'Error deleting task!'
+                        },
+                        status=500,
+                    )
         else:
             return JsonResponse(
                 {
-                    'message': 'Endpoint does not exists for this HTTP verb'
+                    'message': 'Endpoint does not exists for this HTTP verb',
                 },
-                status=404
+                status=404,
             )
 
 
@@ -187,7 +205,7 @@ class TaskEditView(ListView):
                 return JsonResponse(
                     {
                         'message': 'Error finding task to update',
-                        'error': error
+                        'error': error,
                     },
                     status=500,
                 )
@@ -203,25 +221,32 @@ class TaskEditView(ListView):
 
                 try:
                     task_to_update.save()
+
+                    return JsonResponse(
+                        {
+                            'message': 'Successfully updated task',
+                        },
+                        status=200,
+                    )
                 except Exception as error:
                     return JsonResponse(
                         {
                             'message': 'Error updating task',
-                            'error': error
+                            'error': error,
                         },
                         status=500,
                     )
             else:
                 return JsonResponse(
                     {
-                        'message': 'error updating task'
+                        'message': 'error updating task',
                     },
                     status=500
                 )
         else:
             return JsonResponse(
                 {
-                    'message': 'Endpoint does not exists for this HTTP verb'
+                    'message': 'Endpoint does not exists for this HTTP verb',
                 },
                 status=404
             )
@@ -230,7 +255,55 @@ class TaskEditView(ListView):
 class TaskShareView(ListView):
     def share(request):
         if request.method == 'POST':
-            return JsonResponse('Shared the task list')
+            task_id = request.POST.get('task_id')
+            recipient_username = request.POST.get('recipient_username')
+
+            # Find task to share
+            task_to_share = Task.objects.filter(pk=task_id)
+
+            # Find user to share to and confirm they exist
+            recipient_user = User.objects.filter(username=recipient_username)
+
+            if not recipient_user:
+                return JsonResponse(
+                    {
+                        'message': 'Could not find user to share with',
+                    },
+                    status=404
+                )
+            elif not task_to_share:
+                return JsonResponse(
+                    {
+                        'message': 'Could not find task to share',
+                    },
+                    status=404
+                )
+            else:
+                try:
+                    # Share the task
+                    Task_Share.objects.create(
+                        task_id=task_id,
+                        sender_user=1,  # Fix this
+                        recipient_user=recipient_user['id'],
+                        date_shared=datetime.now(),
+                        viewed=False,
+                    )
+
+                    return JsonResponse(
+                        {
+                            'message': 'Successfully shared task',
+                        },
+                        status=200
+                    )
+                except Exception as error:
+                    return JsonResponse(
+                        {
+                            'message': 'Failed to share task',
+                            'error': error,
+                        },
+                        status=400
+                    )
+
         else:
             return JsonResponse(
                 {
