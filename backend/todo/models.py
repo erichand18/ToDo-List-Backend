@@ -2,19 +2,6 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
-class Profile(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        primary_key=True,
-    )
-    profile_picture = models.CharField(max_length=2048)
-    date_created = models.DateTimeField()
-
-    def __str__(self):
-        return self.user.username
-
-
 class Task(models.Model):
     user = models.ForeignKey(
         User,
@@ -24,11 +11,20 @@ class Task(models.Model):
     task_description = models.CharField(max_length=4095)
     color = models.CharField(max_length=6)
     date_created = models.DateTimeField()
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField()
+    completed = models.BooleanField(default=False)
 
     def __str__(self):
         return self.task_name
+
+    def toJson(self):
+        return dict({
+            'user_id': self.user.id,
+            'task_name': self.task_name,
+            'task_description': self.task_description,
+            'color': self.color,
+            'date_created': self.date_created,
+            'completed': self.completed,
+        })
 
 
 class Task_Share(models.Model):

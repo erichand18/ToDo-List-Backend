@@ -3,10 +3,11 @@ from django.contrib.auth.models import User
 from django.views.generic import ListView
 from django.views.decorators.csrf import csrf_exempt
 from django.middleware import csrf
-from todo.models import Task, Profile, Task_Share
+from todo.models import Task, Task_Share
 from django.http import JsonResponse
 import re
 from datetime import datetime
+import json
 
 
 class UsernameAvailabilityView(ListView):
@@ -125,10 +126,10 @@ class UserLoginView(ListView):
             # Try to find the user
             try:
                 user = User.objects.get(username=username)
-            except:
+            except Exception as error:
                 return JsonResponse(
                     {
-                        'message': 'Username does not exist',
+                        'message': f'Username does not exist: {error}',
                     },
                     status=400,
                 )
@@ -137,8 +138,6 @@ class UserLoginView(ListView):
 
             if user is not None:
                 token = csrf.get_token(request)
-
-                print(f"This is the user's backend: {user.backend}")
 
                 return JsonResponse(
                     {
@@ -164,31 +163,41 @@ class UserLoginView(ListView):
 
 
 class TaskListView(ListView):
+    @csrf_exempt
     def get(request):
-        if request.method == 'GET':
+        if request.method == 'POST':
+            username = request.POST.get('username')
             try:
+                # Find the user in the database
+                user = User.objects.get(username=username)
+                user_id = user.id
+
                 # Fetch tasks from the DB and except any errors
-                task_list = list(Task.objects.values())
+                task_list = list(Task.objects.filter(user_id=user_id))
+
+                task_list_json = [x.toJson() for x in task_list]
+
+                print(task_list_json[0])
 
                 # Get list of task_ids for tasks shared with the user
                 task_share_data = list(Task_Share.objects.filter(
-                    # The User's ID FIX THIS ############################################################
-                    recipient_user=1
+                    recipient_user=user_id
                 ).filter(
                     viewed=False
                 ))
-
                 shared_task_ids = [x['id'] for x in task_share_data]
 
                 shared_tasks = Task.objects.filter(
                     pk__in=shared_task_ids
                 )
 
+                shared_tasks_json = [x.toJson() for x in shared_tasks]
+
                 return JsonResponse(
                     {
                         'message': 'Success',
-                        'tasks': task_list,
-                        'shared_tasks': shared_tasks,
+                        'tasks': task_list_json,
+                        'shared_tasks': shared_tasks_json,
                     },
                     status=200,
                 )
@@ -221,9 +230,7 @@ class TaskCreateView(ListView):
                 task_name=task_data['name'],
                 task_description=task_data['description'],
                 color=task_data['color'],
-                date_created=task_data['date_created'],
-                start_date=task_data['start_date'],
-                end_date=task_data['end_date'],
+                date_created=datetime.now(),
             )
 
             new_task.save()
