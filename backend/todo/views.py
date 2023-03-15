@@ -1,12 +1,10 @@
-from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.views.generic import ListView
 from django.views.decorators.csrf import csrf_exempt
 from django.middleware import csrf
-from django.shortcuts import render
 from todo.models import Task, Profile, Task_Share
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 import re
 from datetime import datetime
 
