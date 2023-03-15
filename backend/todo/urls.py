@@ -9,8 +9,13 @@ urlpatterns = [
         name='user-name-available'
     ),
     path(
+        'user/signup',
+        views.UserSignupView.signup,
+        name='user-signup'
+    ),
+    path(
         'user/login',
-        views.user_login,
+        views.UserLoginView.user_login,
         name='user-login'
     ),
     path(

@@ -1,21 +1,24 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 
-class User(models.Model):
-    username = models.CharField(max_length=20)
-    hashed_pw = models.CharField(max_length=50)
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50)
+class Profile(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        primary_key=True,
+    )
+    profile_picture = models.CharField(max_length=2048)
     date_created = models.DateTimeField()
 
     def __str__(self):
-        return self.username
+        return self.user.username
 
 
 class Task(models.Model):
     user = models.ForeignKey(
         User,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
     )
     task_name = models.CharField(max_length=255)
     task_description = models.CharField(max_length=4095)

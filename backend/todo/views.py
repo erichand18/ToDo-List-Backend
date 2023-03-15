@@ -1,8 +1,12 @@
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.views.generic import ListView
-from todo.models import Task, User, Task_Share
 from django.views.decorators.csrf import csrf_exempt
+from django.middleware import csrf
+from django.shortcuts import render
+from todo.models import Task, Profile, Task_Share
+from django.http import HttpResponse, JsonResponse
 import re
 from datetime import datetime
 
@@ -36,7 +40,7 @@ class UsernameAvailabilityView(ListView):
                 )
             else:
                 # username is correct format, so check to see if the username is available
-                account_matching_username = User.objects.filter(
+                account_matching_username = Profile.user.objects.filter(
                     username=username_to_check
                 )
 
@@ -57,11 +61,108 @@ class UsernameAvailabilityView(ListView):
                 status=404,
             )
 
-# Look into Django native user auth
+
+class UserSignupView(ListView):
+    @csrf_exempt
+    def signup(request):
+        if request.method == 'POST':
+            # get user data from the request
+            username = request.POST.get('username')
+            email = request.POST.get('email')
+            password = request.POST.get('password')
+            first_name = request.POST.get('first_name')
+            last_name = request.POST.get('last_name')
+
+            if not username or not email or not password or not first_name or not last_name:
+                return JsonResponse(
+                    {
+                        'message': 'Missing data from user',
+                        'error': error
+                    },
+                    status=400
+                )
+
+            try:
+                # Create user in the database
+                user = User.objects.create_user(
+                    username,
+                    email,
+                    password,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+
+                user.save()
+
+                return JsonResponse(
+                    {
+                        'message': 'User successfully created!',
+                    },
+                    status=201,
+                )
+            except Exception as error:
+                return JsonResponse(
+                    {
+                        'message': f'Error creating user: {error}',
+                    },
+                    status=500
+                )
+
+        else:
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb',
+                },
+                status=404,
+            )
 
 
-def user_login(request):
-    return HttpResponse('Logged user in')
+class UserLoginView(ListView):
+    @csrf_exempt
+    def user_login(request):
+        if request.method == 'POST':
+            username = request.POST.get('username')
+            password = request.POST.get('password')
+
+            # Try to find the user
+            try:
+                user = User.objects.get(username=username)
+            except:
+                return JsonResponse(
+                    {
+                        'message': 'Username does not exist',
+                    },
+                    status=400,
+                )
+
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None:
+                token = csrf.get_token(request)
+
+                print(f"This is the user's backend: {user.backend}")
+
+                return JsonResponse(
+                    {
+                        'message': 'Success',
+                        'token': token,
+                    },
+                    status=200,
+                )
+            else:
+                return JsonResponse(
+                    {
+                        'message': 'Could not authenticate user!',
+                    },
+                    status=403,
+                )
+        else:
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb',
+                },
+                status=404,
+            )
 
 
 class TaskListView(ListView):
@@ -111,7 +212,6 @@ class TaskListView(ListView):
 
 
 class TaskCreateView(ListView):
-    @csrf_exempt
     def create(request):
         if request.method == 'POST':
             # TODO: Add data validation function
@@ -146,7 +246,6 @@ class TaskCreateView(ListView):
 
 
 class TaskDeleteView(ListView):
-    @csrf_exempt
     def delete(request, task_id=0):
         # Delete a task
         if request.method == 'DELETE':
