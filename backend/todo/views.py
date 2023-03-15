@@ -7,7 +7,6 @@ from todo.models import Task, Task_Share
 from django.http import JsonResponse
 import re
 from datetime import datetime
-import json
 
 
 class UsernameAvailabilityView(ListView):
@@ -39,7 +38,7 @@ class UsernameAvailabilityView(ListView):
                 )
             else:
                 # username is correct format, so check to see if the username is available
-                account_matching_username = Profile.user.objects.filter(
+                account_matching_username = User.objects.filter(
                     username=username_to_check
                 )
 

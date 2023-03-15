@@ -47,3 +47,12 @@ class Task_Share(models.Model):
 
     def __str__(self):
         return f"{self.sender_user} shared {self.task} with {self.recipient_user}"
+
+    def toJson(self):
+        return dict({
+            'task_id': self.task.id,
+            'sender_user_id': self.sender_user.id,
+            'recipient_user_id': self.recipient_user.id,
+            'date_shared': self.date_shared,
+            'viewed': self.viewed,
+        })
