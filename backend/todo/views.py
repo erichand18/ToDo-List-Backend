@@ -375,6 +375,11 @@ class TaskShareView(ListView):
         if request.method == 'POST':
             task_id = request.POST.get('task_id')
             recipient_username = request.POST.get('recipient_username')
+            username = request.POST.get('username')
+
+            # Find the user in the database
+            user = User.objects.get(username=username)
+            user_id = user.id
 
             # Find task to share
             task_to_share = Task.objects.filter(pk=task_id)
@@ -401,7 +406,7 @@ class TaskShareView(ListView):
                     # Share the task
                     Task_Share.objects.create(
                         task_id=task_id,
-                        sender_user=1,  # Fix this
+                        sender_user=user_id,
                         recipient_user=recipient_user['id'],
                         date_shared=datetime.now(),
                         viewed=False,
