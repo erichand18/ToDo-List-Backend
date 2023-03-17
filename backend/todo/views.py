@@ -234,7 +234,7 @@ class TaskCreateView(ListView):
             task_data = dict(request.POST.items())
 
             new_task = Task(
-                user_id=task_data['user_id'],
+                user_id=request.user.id,
                 task_name=task_data['name'],
                 task_description=task_data['description'],
                 color=task_data['color'],
@@ -384,11 +384,6 @@ class TaskShareView(ListView):
         if request.method == 'POST':
             task_id = request.POST.get('task_id')
             recipient_username = request.POST.get('recipient_username')
-            username = request.POST.get('username')
-
-            # Find the user in the database
-            user = User.objects.get(username=username)
-            user_id = user.id
 
             # Find task to share
             task_to_share = Task.objects.filter(pk=task_id)
@@ -399,7 +394,7 @@ class TaskShareView(ListView):
             if not recipient_user:
                 return JsonResponse(
                     {
-                        'message': 'Could not find user to share with',
+                        'message': 'Could not find user to share task with',
                     },
                     status=404
                 )
@@ -415,7 +410,7 @@ class TaskShareView(ListView):
                     # Share the task
                     Task_Share.objects.create(
                         task_id=task_id,
-                        sender_user=user_id,
+                        sender_user=request.user.id,
                         recipient_user=recipient_user['id'],
                         date_shared=datetime.now(),
                         viewed=False,
