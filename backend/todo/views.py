@@ -7,6 +7,11 @@ from todo.models import Task, Task_Share
 from django.http import JsonResponse
 import re
 from datetime import datetime
+import jwt
+import environ
+
+env = environ.Env()
+environ.Env.read_env()
 
 
 class UsernameAvailabilityView(ListView):
@@ -136,12 +141,19 @@ class UserLoginView(ListView):
             user = authenticate(request, username=username, password=password)
 
             if user is not None:
-                token = csrf.get_token(request)
-
+                csrf_token = csrf.get_token(request)
+                bearer_token = jwt.encode(
+                    {
+                        'user_id': user.id,
+                    },
+                    env('JWT_SECRET'),
+                    algorithm=env('JWT_ALGORITHM'),
+                )
                 return JsonResponse(
                     {
                         'message': 'Success',
-                        'token': token,
+                        'csrf_token': csrf_token,
+                        'bearer_token': bearer_token,
                     },
                     status=200,
                 )
@@ -164,12 +176,9 @@ class UserLoginView(ListView):
 class TaskListView(ListView):
     @csrf_exempt
     def get(request):
-        if request.method == 'POST':
-            username = request.POST.get('username')
+        if request.method == 'GET':
             try:
-                # Find the user in the database
-                user = User.objects.get(username=username)
-                user_id = user.id
+                user_id = request.user.id
 
                 # Fetch tasks from the DB and except any errors
                 task_list = list(Task.objects.filter(user_id=user_id))
