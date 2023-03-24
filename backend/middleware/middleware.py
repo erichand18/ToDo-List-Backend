@@ -22,8 +22,7 @@ class JWTTokenDecodeMiddleware(MiddlewareMixin):
             try:
                 bearer_token = jwt.decode(
                     authorization_header,
-                    env(
-                        'JWT_SECRET'),
+                    env('JWT_SECRET'),
                     env('JWT_ALGORITHM')
                 )
 
