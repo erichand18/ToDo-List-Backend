@@ -24,17 +24,22 @@ urlpatterns = [
         name='task-list'
     ),
     path(
+        'task/complete',
+        views.TaskCompleteView.complete,
+        name='task-complete'
+    ),
+    path(
         'task/new',
         views.TaskCreateView.create,
         name='task-create'
     ),
-    re_path(
-        r'task/(?P<task_id>[0-9])/edit',
+    path(
+        'task/<int:task_id>/edit',
         views.TaskEditView.edit,
         name='task-edit',
     ),
-    re_path(
-        r'task/(?P<task_id>[0-9])/delete',
+    path(
+        'task/<int:task_id>/delete',
         views.TaskDeleteView.delete,
         name='task-delete'
     ),

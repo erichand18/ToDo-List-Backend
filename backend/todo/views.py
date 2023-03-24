@@ -1,16 +1,20 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.views.generic import ListView
-from django.views.decorators.csrf import csrf_exempt
 from django.middleware import csrf
 from todo.models import Task, Task_Share
-from django.http import JsonResponse
+from django.http import JsonResponse, QueryDict
 import re
 from datetime import datetime
+import jwt
+import json
+import environ
+
+env = environ.Env()
+environ.Env.read_env()
 
 
 class UsernameAvailabilityView(ListView):
-    @csrf_exempt
     def is_available(request):
         if request.method == 'POST':
             username_to_check = request.POST.get('username')
@@ -61,7 +65,6 @@ class UsernameAvailabilityView(ListView):
 
 
 class UserSignupView(ListView):
-    @csrf_exempt
     def signup(request):
         if request.method == 'POST':
             # get user data from the request
@@ -75,7 +78,6 @@ class UserSignupView(ListView):
                 return JsonResponse(
                     {
                         'message': 'Missing data from user',
-                        'error': error
                     },
                     status=400
                 )
@@ -116,7 +118,6 @@ class UserSignupView(ListView):
 
 
 class UserLoginView(ListView):
-    @csrf_exempt
     def user_login(request):
         if request.method == 'POST':
             username = request.POST.get('username')
@@ -136,12 +137,17 @@ class UserLoginView(ListView):
             user = authenticate(request, username=username, password=password)
 
             if user is not None:
-                token = csrf.get_token(request)
-
+                bearer_token = jwt.encode(
+                    {
+                        'user_id': user.id,
+                    },
+                    env('JWT_SECRET'),
+                    algorithm=env('JWT_ALGORITHM'),
+                )
                 return JsonResponse(
                     {
                         'message': 'Success',
-                        'token': token,
+                        'bearer_token': bearer_token,
                     },
                     status=200,
                 )
@@ -162,35 +168,39 @@ class UserLoginView(ListView):
 
 
 class TaskListView(ListView):
-    @csrf_exempt
     def get(request):
-        if request.method == 'POST':
-            username = request.POST.get('username')
+        if request.method == 'GET':
             try:
-                # Find the user in the database
-                user = User.objects.get(username=username)
-                user_id = user.id
-
-                # Fetch tasks from the DB and except any errors
-                task_list = list(Task.objects.filter(user_id=user_id))
-
-                task_list_json = [x.toJson() for x in task_list]
-
-                print(task_list_json[0])
+                user_id = request.user.id
 
                 # Get list of task_ids for tasks shared with the user
-                task_share_data = list(Task_Share.objects.filter(
+                task_share_data = Task_Share.objects.filter(
                     recipient_user=user_id
                 ).filter(
                     viewed=False
-                ))
-                shared_task_ids = [x['id'] for x in task_share_data]
+                )
+
+                shared_tasks_list = list(task_share_data)
+                for task in shared_tasks_list:
+                    task = task.toJson()
+
+                # Fetch tasks the user has that were shared to the user
+                shared_task_ids = [x.id for x in shared_tasks_list]
 
                 shared_tasks = Task.objects.filter(
                     pk__in=shared_task_ids
                 )
 
                 shared_tasks_json = [x.toJson() for x in shared_tasks]
+
+                # Fetch tasks from the DB and except any errors
+                task_list = list(Task.objects.filter(
+                    user_id=user_id
+                ).exclude(
+                    pk__in=shared_task_ids
+                ))
+
+                task_list_json = [x.toJson() for x in task_list]
 
                 return JsonResponse(
                     {
@@ -217,6 +227,43 @@ class TaskListView(ListView):
             )
 
 
+class TaskCompleteView(ListView):
+    def complete(request):
+        if request.method == 'POST':
+            user_id = request.user.id
+            task_id = request.POST.get('task_id')
+
+            try:
+                # Fetch tasks from the DB and except any errors
+                task = Task.objects.get(user_id=user_id, id=task_id)
+                current_complete_status = task.completed
+
+                task.completed = bool(not current_complete_status)
+                task.save()
+
+                return JsonResponse(
+                    {
+                        'message': 'task updated successfully',
+                        'completed': task.completed,
+                    }
+                )
+            except Exception as error:
+                return JsonResponse(
+                    {
+                        'message': f'An error occurred completing task',
+                    },
+                    status=500,
+                )
+
+        else:
+            return JsonResponse(
+                {
+                    'message': 'Endpoint does not exists for this HTTP verb',
+                },
+                status=404,
+            )
+
+
 class TaskCreateView(ListView):
     def create(request):
         if request.method == 'POST':
@@ -225,10 +272,9 @@ class TaskCreateView(ListView):
             task_data = dict(request.POST.items())
 
             new_task = Task(
-                user_id=task_data['user_id'],
+                user_id=request.user.id,
                 task_name=task_data['name'],
                 task_description=task_data['description'],
-                color=task_data['color'],
                 date_created=datetime.now(),
             )
 
@@ -319,6 +365,21 @@ class TaskEditView(ListView):
             # Find the record to update
             try:
                 task_to_update = Task.objects.filter(pk=task_id)
+
+                updates = dict(QueryDict(request.body))
+                # TODO: validate updates
+
+                for key in updates:
+                    updates[key] = updates[key][0]
+
+                task_to_update.update(**updates)
+
+                return JsonResponse(
+                    {
+                        'message': 'Successfully updated task',
+                    },
+                    status=200,
+                )
             except Exception as error:
                 return JsonResponse(
                     {
@@ -328,38 +389,13 @@ class TaskEditView(ListView):
                     status=500,
                 )
 
-            # Make sure only one record was found
-            if len(list(task_to_update)) == 1:
-                updates = dict(request.PUT.items())
-
-                # TODO: validate updates
-
-                for key in updates:
-                    task_to_update[key] = updates[key]
-
-                try:
-                    task_to_update.save()
-
-                    return JsonResponse(
-                        {
-                            'message': 'Successfully updated task',
-                        },
-                        status=200,
-                    )
-                except Exception as error:
-                    return JsonResponse(
-                        {
-                            'message': 'Error updating task',
-                            'error': error,
-                        },
-                        status=500,
-                    )
-            else:
+            except Exception as error:
                 return JsonResponse(
                     {
-                        'message': 'error updating task',
+                        'message': 'Error updating task',
+                        'error': error,
                     },
-                    status=500
+                    status=500,
                 )
         else:
             return JsonResponse(
@@ -375,39 +411,44 @@ class TaskShareView(ListView):
         if request.method == 'POST':
             task_id = request.POST.get('task_id')
             recipient_username = request.POST.get('recipient_username')
-            username = request.POST.get('username')
-
-            # Find the user in the database
-            user = User.objects.get(username=username)
-            user_id = user.id
 
             # Find task to share
-            task_to_share = Task.objects.filter(pk=task_id)
+            task_to_share = Task.objects.get(pk=task_id)
 
             # Find user to share to and confirm they exist
-            recipient_user = User.objects.filter(username=recipient_username)
+            recipient_user = User.objects.get(username=recipient_username)
 
             if not recipient_user:
                 return JsonResponse(
                     {
-                        'message': 'Could not find user to share with',
+                        'message': 'Could not find user to share task with',
                     },
-                    status=404
+                    status=404,
                 )
             elif not task_to_share:
                 return JsonResponse(
                     {
                         'message': 'Could not find task to share',
                     },
-                    status=404
+                    status=404,
                 )
             else:
                 try:
+                    # Create new task for recipient user
+                    new_task = Task(
+                        user_id=recipient_user.id,
+                        task_name=task_to_share.task_name,
+                        task_description=task_to_share.task_description,
+                        date_created=datetime.now(),
+                    )
+
+                    new_task.save()
+
                     # Share the task
                     Task_Share.objects.create(
                         task_id=task_id,
-                        sender_user=user_id,
-                        recipient_user=recipient_user['id'],
+                        sender_user=request.user,
+                        recipient_user=recipient_user,
                         date_shared=datetime.now(),
                         viewed=False,
                     )

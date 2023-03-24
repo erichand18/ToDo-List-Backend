@@ -18,6 +18,7 @@ class Task(models.Model):
 
     def toJson(self):
         return dict({
+            'id': self.id,
             'user_id': self.user.id,
             'task_name': self.task_name,
             'task_description': self.task_description,
